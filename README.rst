@@ -9,7 +9,7 @@ by glob patterns, and returns those matches alongside the filenames.
 Example
 -------
 
-.. code-block:: python
+::
 
     import glob2
 
