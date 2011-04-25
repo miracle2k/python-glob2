@@ -9,6 +9,8 @@ by glob patterns, and returns those matches alongside the filenames.
 Example
 -------
 
+.. code-block:: python
+
     import glob2
 
     for filename, (version,) in glob2.iglob('./binaries/project-*.zip'):
