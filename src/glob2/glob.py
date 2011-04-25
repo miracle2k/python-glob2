@@ -33,14 +33,14 @@ def iglob(pathname):
     if has_magic(dirname):
         dirs = iglob(dirname)
     else:
-        dirs = [dirname]
+        dirs = [(dirname, ())]
     if has_magic(basename):
         glob_in_dir = glob1
     else:
         glob_in_dir = glob0
-    for dirname in dirs:
-        for name in glob_in_dir(dirname, basename):
-            yield os.path.join(dirname, name)
+    for dirname, dir_groups in dirs:
+        for name, groups in glob_in_dir(dirname, basename):
+            yield os.path.join(dirname, name), dir_groups + groups
 
 # These 2 helper functions non-recursively glob inside a literal directory.
 # They return a list of basenames. `glob1` accepts a pattern while `glob0`
@@ -65,10 +65,10 @@ def glob0(dirname, basename):
         # `os.path.split()` returns an empty basename for paths ending with a
         # directory separator.  'q*x/' should match only directories.
         if os.path.isdir(dirname):
-            return [basename]
+            return [(basename, ())]
     else:
         if os.path.lexists(os.path.join(dirname, basename)):
-            return [basename]
+            return [(basename, ())]
     return []
 
 

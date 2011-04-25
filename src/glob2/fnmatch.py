@@ -56,12 +56,14 @@ def filter(names, pat):
     if os.path is posixpath:
         # normcase on posix is NOP. Optimize it away from the loop.
         for name in names:
-            if match(name):
-                result.append(name)
+            m = match(name)
+            if m:
+                result.append((name, m.groups()))
     else:
         for name in names:
-            if match(os.path.normcase(name)):
-                result.append(name)
+            m = match(os.path.normcase(name))
+            if m:
+                result.append((name, m.groups()))
     return result
 
 def fnmatchcase(name, pat):
@@ -90,9 +92,9 @@ def translate(pat):
         c = pat[i]
         i = i+1
         if c == '*':
-            res = res + '.*'
+            res = res + '(.*)'
         elif c == '?':
-            res = res + '.'
+            res = res + '(.)'
         elif c == '[':
             j = i
             if j < n and pat[j] == '!':
@@ -110,7 +112,7 @@ def translate(pat):
                     stuff = '^' + stuff[1:]
                 elif stuff[0] == '^':
                     stuff = '\\' + stuff
-                res = '%s[%s]' % (res, stuff)
+                res = '%s([%s])' % (res, stuff)
         else:
             res = res + re.escape(c)
     return res + '\Z(?ms)'
