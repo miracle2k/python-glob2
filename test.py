@@ -3,6 +3,8 @@ from os import path
 import shutil
 import tempfile
 
+from nose.tools import assert_equals
+
 import glob2
 from glob2 import fnmatch
 
@@ -44,29 +46,105 @@ class TestFnmatch(object):
         ]
 
 
-class TestGlob2(object):
+class BaseTest(object):
 
     def setup(self):
         self.basedir = tempfile.mkdtemp()
+        self._old_cwd = os.getcwdu()
+        os.chdir(self.basedir)
+
+        self.setup_files()
+
+    def setup_files(self):
+        pass
 
     def teardown(self):
+        os.chdir(self._old_cwd)
         shutil.rmtree(self.basedir)
 
-    def makedirs(self, name):
-        os.makedirs(path.join(self.basedir, name))
+    def makedirs(self, *names):
+        for name in names:
+            os.makedirs(path.join(self.basedir, name))
 
-    def touch(self, name):
-        open(path.join(self.basedir, name), 'w').close()
+    def touch(self, *names):
+        for name in names:
+            open(path.join(self.basedir, name), 'w').close()
+
+
+class TestPatterns(BaseTest):
 
     def test(self):
-        self.makedirs('dir1')
-        self.makedirs('dir22')
-        self.touch('dir1/a-file')
-        self.touch('dir1/b-file')
-        self.touch('dir22/a-file')
-        self.touch('dir22/b-file')
-        assert glob2.glob(path.join(self.basedir, 'dir?', 'a-*')) == [
-            (path.join(self.basedir, 'dir1/a-file'), ('1', 'file'))
+        self.makedirs('dir1', 'dir22')
+        self.touch(
+            'dir1/a-file', 'dir1/b-file', 'dir22/a-file', 'dir22/b-file')
+        assert glob2.glob('dir?/a-*') == [
+            ('dir1/a-file', ('1', 'file'))
         ]
 
 
+class TestRecursive(BaseTest):
+
+    def setup_files(self):
+        self.makedirs('a', 'b', 'a/foo')
+        self.touch('file.py', 'file.txt', 'a/bar.py', 'README', 'b/py',
+                   'b/bar.py', 'a/foo/hello.py', 'a/foo/world.txt')
+
+    def test_recursive(self):
+        # ** includes the current directory
+        assert_equals(glob2.glob('**/*.py'), [
+            ('file.py', ('', 'file')),
+            ('a/bar.py', ('a', 'bar')),
+            ('b/bar.py', ('b', 'bar')),
+            ('a/foo/hello.py', ('a/foo', 'hello')),
+        ])
+
+    def test_exclude_root_directory(self):
+        # If files from the rot directory should not be included,
+        # this is the syntax to use:
+        assert_equals(glob2.glob('*/**/*.py'), [
+            ('a/bar.py', ('a', '', 'bar')),
+            ('a/foo/hello.py', ('a', 'foo', 'hello')),
+            ('b/bar.py', ('b', '', 'bar'))
+        ])
+
+    def test_only_directories(self):
+        # Return directories only
+        assert_equals(glob2.glob('**/'), [
+            ('a/', ('a',)),
+            ('b/', ('b',)),
+            ('a/foo/', ('a/foo',))
+        ])
+
+    def test_parent_dir(self):
+        # Make sure ".." can be used
+        os.chdir(path.join(self.basedir, 'b'))
+        assert_equals(glob2.glob('../a/**/*.py'), [
+            ('../a/bar.py', ('', 'bar')),
+            ('../a/foo/hello.py', ('foo', 'hello'))
+        ])
+
+    def test_fixed_basename(self):
+        assert_equals(glob2.glob('**/bar.py'), [
+            ('a/bar.py', ('a',)),
+            ('b/bar.py', ('b',)),
+        ])
+
+    def test_all_files(self):
+        # Return all files
+        os.chdir(path.join(self.basedir, 'a'))
+        assert_equals(glob2.glob('**'), [
+            ('foo', ('foo',)),
+            ('bar.py', ('bar.py',)),
+            ('foo/world.txt', ('foo/world.txt',)),
+            ('foo/hello.py', ('foo/hello.py',))
+        ])
+
+    def test_root_directory_not_returned(self):
+        # Ensure that a certain codepath (when the basename is globbed
+        # with ** as opposed to the dirname) does not cause
+        # the root directory to be part of the result.
+        # -> b/ is NOT in the result!
+        assert_equals(glob2.glob('b/**'), [
+            ('b/py', ('py',)),
+            ('b/bar.py', ('bar.py',)),
+        ])

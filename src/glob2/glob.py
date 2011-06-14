@@ -15,11 +15,19 @@ def glob(pathname):
     """
     return list(iglob(pathname))
 
-def iglob(pathname):
+def iglob(pathname, _root=True):
     """Return an iterator which yields the paths matching a pathname pattern.
 
     The pattern may contain simple shell-style wildcards a la fnmatch.
 
+    ``_root`` is required to differentiate between the user's call to
+    iglob(), and subsequent recursive calls, for the purposes of resolving
+    certain special cases of ** wildcards. Specifically, "**" is supposed
+    to include the current directory for purposes of globbing, but the
+    directory itself should never be returned. So if ** is the lastmost
+    part of the ``pathname`` given the user to the root call, we want to
+    ignore the current directory. For this, we need to know which the root
+    call is.
     """
     if not has_magic(pathname):
         if os.path.lexists(pathname):
@@ -27,15 +35,15 @@ def iglob(pathname):
         return
     dirname, basename = os.path.split(pathname)
     if not dirname:
-        for name in glob1(os.curdir, basename):
-            yield name
+        for name, groups in glob1(os.curdir, basename, not _root):
+            yield name, groups
         return
     if has_magic(dirname):
-        dirs = iglob(dirname)
+        dirs = iglob(dirname, _root=False)
     else:
         dirs = [(dirname, ())]
     if has_magic(basename):
-        glob_in_dir = glob1
+        glob_in_dir = lambda dir, pat: glob1(dir, pat, not _root)
     else:
         glob_in_dir = glob0
     for dirname, dir_groups in dirs:
@@ -46,18 +54,32 @@ def iglob(pathname):
 # They return a list of basenames. `glob1` accepts a pattern while `glob0`
 # takes a literal basename (so it only has to check for its existence).
 
-def glob1(dirname, pattern):
+def glob1(dirname, pattern, include_root):
     if not dirname:
         dirname = os.curdir
     if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
         dirname = unicode(dirname, sys.getfilesystemencoding() or
                                    sys.getdefaultencoding())
     try:
-        names = os.listdir(dirname)
+        if pattern == '**':
+            # Include the current directory in **, if asked; by adding
+            # an empty string as opposed to '.', be spare ourselves
+            # having to deal with os.path.normpath() later.
+            names = [''] if include_root else []
+            for top, dirs, files in os.walk(dirname):
+                _mkabs = lambda s: os.path.join(top[len(dirname)+1:], s)
+                names.extend(map(_mkabs, dirs))
+                names.extend(map(_mkabs, files))
+            # Reset pattern so that fnmatch(), which does not understand
+            # ** specifically, will only return a single group match.
+            pattern = '*'
+        else:
+            names = os.listdir(dirname)
     except os.error:
         return []
     if pattern[0] != '.':
-        names = filter(lambda x: x[0] != '.', names)
+        # Do not filter out the '' that we might have added earlier
+        names = filter(lambda x: not x or x[0] != '.', names)
     return fnmatch.filter(names, pattern)
 
 def glob0(dirname, basename):
