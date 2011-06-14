@@ -1,5 +1,7 @@
 *.pyc
 *egg-info
+/BRANCH_TODO
 
-# WingIDE
+# IDEs
 *.wpr
+/.idea/
