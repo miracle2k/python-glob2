@@ -1,0 +1,4 @@
+Because our implementation of recursive directory search (**) using
+os.walk, and the matching using fnmatch, are both not using iterators,
+something like /** currently needs to read the whole filesystem into
+memory before returning anything.
