@@ -20,7 +20,7 @@ Matches being returned:
 
     import glob2
 
-    for filename, (version,) in glob2.iglob('./binaries/project-*.zip'):
+    for filename, (version,) in glob2.iglob('./binaries/project-*.zip', with_matches=True):
         print version
 
 
@@ -28,8 +28,9 @@ Recursive glob:
 
 ::
 
-    import glob2
-    all_header_files = glob2.glob('src/**/*.h')
+    >>> import glob2
+    >>> all_header_files = glob2.glob('src/**/*.h')
+    ['src/fs.h', 'src/media/mp3.h', 'src/media/mp3/frame.h', ...]
 
 
 Note that ``**`` must appear on it's own as a directory

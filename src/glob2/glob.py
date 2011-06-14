@@ -5,21 +5,39 @@ import os
 import re
 import fnmatch
 
+
 __all__ = ["glob", "iglob"]
 
-def glob(pathname):
+
+def glob(pathname, with_matches=False):
     """Return a list of paths matching a pathname pattern.
 
     The pattern may contain simple shell-style wildcards a la fnmatch.
 
     """
-    return list(iglob(pathname))
+    return list(iglob(pathname, with_matches))
 
-def iglob(pathname, _root=True):
-    """Return an iterator which yields the paths matching a pathname pattern.
+
+def iglob(pathname, with_matches=False):
+    """Return an iterator which yields the paths matching a pathname
+    pattern.
 
     The pattern may contain simple shell-style wildcards a la fnmatch.
 
+    If ``with_matches`` is True, then for each matching path
+    a 2-tuple will be returned; the second element if the tuple
+    will be a list of the parts of the path that matched the individual
+    wildcards.
+    """
+    result = iglob_internal(pathname)
+    if with_matches:
+        return result
+    return map(lambda s: s[0], result)
+
+
+
+def iglob_internal(pathname, _root=True):
+    """
     ``_root`` is required to differentiate between the user's call to
     iglob(), and subsequent recursive calls, for the purposes of resolving
     certain special cases of ** wildcards. Specifically, "**" is supposed
@@ -39,7 +57,7 @@ def iglob(pathname, _root=True):
             yield name, groups
         return
     if has_magic(dirname):
-        dirs = iglob(dirname, _root=False)
+        dirs = iglob_internal(dirname, _root=False)
     else:
         dirs = [(dirname, ())]
     if has_magic(basename):

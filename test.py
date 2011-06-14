@@ -77,7 +77,7 @@ class TestPatterns(BaseTest):
         self.makedirs('dir1', 'dir22')
         self.touch(
             'dir1/a-file', 'dir1/b-file', 'dir22/a-file', 'dir22/b-file')
-        assert glob2.glob('dir?/a-*') == [
+        assert glob2.glob('dir?/a-*', True) == [
             ('dir1/a-file', ('1', 'file'))
         ]
 
@@ -91,7 +91,7 @@ class TestRecursive(BaseTest):
 
     def test_recursive(self):
         # ** includes the current directory
-        assert_equals(glob2.glob('**/*.py'), [
+        assert_equals(glob2.glob('**/*.py', True), [
             ('file.py', ('', 'file')),
             ('a/bar.py', ('a', 'bar')),
             ('b/bar.py', ('b', 'bar')),
@@ -101,7 +101,7 @@ class TestRecursive(BaseTest):
     def test_exclude_root_directory(self):
         # If files from the rot directory should not be included,
         # this is the syntax to use:
-        assert_equals(glob2.glob('*/**/*.py'), [
+        assert_equals(glob2.glob('*/**/*.py', True), [
             ('a/bar.py', ('a', '', 'bar')),
             ('a/foo/hello.py', ('a', 'foo', 'hello')),
             ('b/bar.py', ('b', '', 'bar'))
@@ -109,7 +109,7 @@ class TestRecursive(BaseTest):
 
     def test_only_directories(self):
         # Return directories only
-        assert_equals(glob2.glob('**/'), [
+        assert_equals(glob2.glob('**/', True), [
             ('a/', ('a',)),
             ('b/', ('b',)),
             ('a/foo/', ('a/foo',))
@@ -118,13 +118,13 @@ class TestRecursive(BaseTest):
     def test_parent_dir(self):
         # Make sure ".." can be used
         os.chdir(path.join(self.basedir, 'b'))
-        assert_equals(glob2.glob('../a/**/*.py'), [
+        assert_equals(glob2.glob('../a/**/*.py', True), [
             ('../a/bar.py', ('', 'bar')),
             ('../a/foo/hello.py', ('foo', 'hello'))
         ])
 
     def test_fixed_basename(self):
-        assert_equals(glob2.glob('**/bar.py'), [
+        assert_equals(glob2.glob('**/bar.py', True), [
             ('a/bar.py', ('a',)),
             ('b/bar.py', ('b',)),
         ])
@@ -132,7 +132,7 @@ class TestRecursive(BaseTest):
     def test_all_files(self):
         # Return all files
         os.chdir(path.join(self.basedir, 'a'))
-        assert_equals(glob2.glob('**'), [
+        assert_equals(glob2.glob('**', True), [
             ('foo', ('foo',)),
             ('bar.py', ('bar.py',)),
             ('foo/world.txt', ('foo/world.txt',)),
@@ -144,7 +144,7 @@ class TestRecursive(BaseTest):
         # with ** as opposed to the dirname) does not cause
         # the root directory to be part of the result.
         # -> b/ is NOT in the result!
-        assert_equals(glob2.glob('b/**'), [
+        assert_equals(glob2.glob('b/**', True), [
             ('b/py', ('py',)),
             ('b/bar.py', ('bar.py',)),
         ])
