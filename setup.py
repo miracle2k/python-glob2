@@ -23,7 +23,8 @@ fp.close()
 setup(
     name = 'glob2',
     version = ".".join(map(str, version)),
-    description = 'Version of the glob module that can capture patterns.',
+    description = 'Version of the glob module that can capture patterns '+
+                  'and supports recursive wildcards',
     author = 'Michael Elsdoerfer',
     author_email = 'michael@elsdoerfer.com',
     url = 'http://github.com/miracle2k/python-glob2/',
