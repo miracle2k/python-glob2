@@ -1,6 +1,9 @@
 *.pyc
-*egg-info
 /BRANCH_TODO
+
+# distutils/setuptools
+/dist/
+*egg-info
 
 # IDEs
 *.wpr
