@@ -1,4 +1,4 @@
-from glob import *
+from impl import *
 
 
 __version__ = (0, 3, 'dev')
