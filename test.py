@@ -150,10 +150,7 @@ class TestRecursive(BaseTest):
         ])
 
     def test_non_glob(self):
-        # Ensure that a certain codepath (when the basename is globbed
-        # with ** as opposed to the dirname) does not cause
-        # the root directory to be part of the result.
-        # -> b/ is NOT in the result!
+        # Test without patterns.
         assert_equals(glob2.glob(__file__, True), [
             (__file__, ())
         ])
