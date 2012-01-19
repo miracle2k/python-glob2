@@ -49,7 +49,7 @@ def iglob_internal(pathname, _root=True):
     """
     if not has_magic(pathname):
         if os.path.lexists(pathname):
-            yield pathname
+            yield pathname, ()
         return
     dirname, basename = os.path.split(pathname)
     if not dirname:
