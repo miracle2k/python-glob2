@@ -148,3 +148,15 @@ class TestRecursive(BaseTest):
             ('b/py', ('py',)),
             ('b/bar.py', ('bar.py',)),
         ])
+
+    def test_non_glob(self):
+        # Ensure that a certain codepath (when the basename is globbed
+        # with ** as opposed to the dirname) does not cause
+        # the root directory to be part of the result.
+        # -> b/ is NOT in the result!
+        assert_equals(glob2.glob(__file__, True), [
+            (__file__, ())
+        ])
+        assert_equals(glob2.glob(__file__), [
+            (__file__)
+        ])
