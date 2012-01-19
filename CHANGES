@@ -1,0 +1,6 @@
+0.3 (2012-01-19)
+    - Fix non-glob patterns (patch by Zalan).
+    - Don't shadow internal "glob" module.
+
+0.2 (2011-06-14)
+    - Initial release.
