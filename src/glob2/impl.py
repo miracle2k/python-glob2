@@ -6,9 +6,6 @@ import re
 import fnmatch
 
 
-__all__ = ["glob", "iglob"]
-
-
 def glob(pathname, with_matches=False):
     """Return a list of paths matching a pathname pattern.
 
