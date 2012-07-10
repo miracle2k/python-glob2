@@ -76,9 +76,9 @@ Custom Globber:
 If ``isdir`` and/or ``islink`` cannot be implemented for a storage, you can
 make them return a fixed value, with the following consequences:
 
-    - If ``isdir`` returns ``True``, a glob expression ending with a slash
-      will return all items, even non-directories, if it returns ``False``,
-      the same glob expression will return nothing.
+- If ``isdir`` returns ``True``, a glob expression ending with a slash
+  will return all items, even non-directories, if it returns ``False``,
+  the same glob expression will return nothing.
 
-    - Return ``islink`` ``True``, the recursive globbing syntax ** will
-      follow all links. If you return ``False``, it will not work at all.
+- Return ``islink`` ``True``, the recursive globbing syntax ** will
+  follow all links. If you return ``False``, it will not work at all.
