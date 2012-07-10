@@ -18,6 +18,7 @@ Examples
 --------
 
 Matches being returned:
+~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -28,6 +29,7 @@ Matches being returned:
 
 
 Recursive glob:
+~~~~~~~~~~~~~~~
 
 ::
 
@@ -46,6 +48,7 @@ instead.
 
 
 Custom Globber:
+~~~~~~~~~~~~~~~
 
 ::
 
