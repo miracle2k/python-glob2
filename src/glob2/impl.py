@@ -6,107 +6,132 @@ import re
 import fnmatch
 
 
-def glob(pathname, with_matches=False):
-    """Return a list of paths matching a pathname pattern.
+class Globber(object):
 
-    The pattern may contain simple shell-style wildcards a la fnmatch.
+    listdir = staticmethod(os.listdir)
+    walk = staticmethod(os.walk)
+    exists = staticmethod(os.path.lexists)
 
-    """
-    return list(iglob(pathname, with_matches))
+    def glob(self, pathname, with_matches=False):
+        """Return a list of paths matching a pathname pattern.
 
+        The pattern may contain simple shell-style wildcards a la fnmatch.
 
-def iglob(pathname, with_matches=False):
-    """Return an iterator which yields the paths matching a pathname
-    pattern.
+        """
+        return list(self.iglob(pathname, with_matches))
 
-    The pattern may contain simple shell-style wildcards a la fnmatch.
+    def iglob(self, pathname, with_matches=False):
+        """Return an iterator which yields the paths matching a pathname
+        pattern.
 
-    If ``with_matches`` is True, then for each matching path
-    a 2-tuple will be returned; the second element if the tuple
-    will be a list of the parts of the path that matched the individual
-    wildcards.
-    """
-    result = iglob_internal(pathname)
-    if with_matches:
-        return result
-    return map(lambda s: s[0], result)
+        The pattern may contain simple shell-style wildcards a la fnmatch.
 
+        If ``with_matches`` is True, then for each matching path
+        a 2-tuple will be returned; the second element if the tuple
+        will be a list of the parts of the path that matched the individual
+        wildcards.
+        """
+        result = self._iglob(pathname)
+        if with_matches:
+            return result
+        return map(lambda s: s[0], result)
 
+    def _iglob(self, pathname, rootcall=True):
+        """Internal implementation that backs :meth:`iglob`.
 
-def iglob_internal(pathname, _root=True):
-    """
-    ``_root`` is required to differentiate between the user's call to
-    iglob(), and subsequent recursive calls, for the purposes of resolving
-    certain special cases of ** wildcards. Specifically, "**" is supposed
-    to include the current directory for purposes of globbing, but the
-    directory itself should never be returned. So if ** is the lastmost
-    part of the ``pathname`` given the user to the root call, we want to
-    ignore the current directory. For this, we need to know which the root
-    call is.
-    """
-    if not has_magic(pathname):
-        if os.path.lexists(pathname):
-            yield pathname, ()
-        return
-    dirname, basename = os.path.split(pathname)
-    if not dirname:
-        for name, groups in glob1(os.curdir, basename, not _root):
-            yield name, groups
-        return
-    if has_magic(dirname):
-        dirs = iglob_internal(dirname, _root=False)
-    else:
-        dirs = [(dirname, ())]
-    if has_magic(basename):
-        glob_in_dir = lambda dir, pat: glob1(dir, pat, not _root)
-    else:
-        glob_in_dir = glob0
-    for dirname, dir_groups in dirs:
-        for name, groups in glob_in_dir(dirname, basename):
-            yield os.path.join(dirname, name), dir_groups + groups
+        ``rootcall`` is required to differentiate between the user's call to
+        iglob(), and subsequent recursive calls, for the purposes of resolving
+        certain special cases of ** wildcards. Specifically, "**" is supposed
+        to include the current directory for purposes of globbing, but the
+        directory itself should never be returned. So if ** is the lastmost
+        part of the ``pathname`` given the user to the root call, we want to
+        ignore the current directory. For this, we need to know which the root
+        call is.
+        """
 
-# These 2 helper functions non-recursively glob inside a literal directory.
-# They return a list of basenames. `glob1` accepts a pattern while `glob0`
-# takes a literal basename (so it only has to check for its existence).
+        # Short-circuit if no glob magic
+        if not has_magic(pathname):
+            if self.exists(pathname):
+                yield pathname, ()
+            return
 
-def glob1(dirname, pattern, include_root):
-    if not dirname:
-        dirname = os.curdir
-    if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
-        dirname = unicode(dirname, sys.getfilesystemencoding() or
-                                   sys.getdefaultencoding())
-    try:
-        if pattern == '**':
-            # Include the current directory in **, if asked; by adding
-            # an empty string as opposed to '.', be spare ourselves
-            # having to deal with os.path.normpath() later.
-            names = [''] if include_root else []
-            for top, dirs, files in os.walk(dirname):
-                _mkabs = lambda s: os.path.join(top[len(dirname)+1:], s)
-                names.extend(map(_mkabs, dirs))
-                names.extend(map(_mkabs, files))
-            # Reset pattern so that fnmatch(), which does not understand
-            # ** specifically, will only return a single group match.
-            pattern = '*'
+        # If no directory part is left, assume the working directory
+        dirname, basename = os.path.split(pathname)
+
+        # If the directory is globbed, recurse to resolve.
+        # If at this point there is no directory part left, we simply
+        # continue with dirname="", which will search the current dir.
+        if dirname and has_magic(dirname):
+            # Note that this may return files, which will be ignored
+            # later when we try to use them as directories.
+            # Prefiltering them here would only require more IO ops.
+            dirs = self._iglob(dirname, rootcall=False)
         else:
-            names = os.listdir(dirname)
-    except os.error:
-        return []
-    if pattern[0] != '.':
-        # Do not filter out the '' that we might have added earlier
-        names = filter(lambda x: not x or x[0] != '.', names)
-    return fnmatch.filter(names, pattern)
+            dirs = [(dirname, ())]
 
-def glob0(dirname, basename):
-    if basename == '':
-        # `os.path.split()` returns an empty basename for paths ending with a
-        # directory separator.  'q*x/' should match only directories.
-        if os.path.isdir(dirname):
-            return [(basename, ())]
-    else:
-        if os.path.lexists(os.path.join(dirname, basename)):
-            return [(basename, ())]
-    return []
+        # Resolve ``basename`` expr for every directory found
+        for dirname, dir_groups in dirs:
+            for name, groups in self.resolve_pattern(
+                    dirname, basename, not rootcall):
+                yield os.path.join(dirname, name), dir_groups + groups
+
+    def resolve_pattern(self, dirname, pattern, globstar_with_root):
+        """Apply ``pattern`` (contains no path elements) to the
+        literal directory`` in dirname``.
+
+        If pattern=='', this will filter for directories. This is
+        a special case that happens when the user's glob expression ends
+        with a slash (in which case we only want directories). It simpler
+        and faster to filter here than in :meth:`_iglob`.
+        """
+
+        if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
+            dirname = unicode(dirname, sys.getfilesystemencoding() or
+                                       sys.getdefaultencoding())
+
+        # If no magic, short-circuit, only check for existence
+        if not has_magic(pattern):
+            if pattern == '':
+                if os.path.isdir(dirname):
+                    return [(pattern, ())]
+            else:
+                if self.exists(os.path.join(dirname, pattern)):
+                    return [(pattern, ())]
+            return []
+
+        if not dirname:
+            dirname = os.curdir
+
+        try:
+            if pattern == '**':
+                # Include the current directory in **, if asked; by adding
+                # an empty string as opposed to '.', be spare ourselves
+                # having to deal with os.path.normpath() later.
+                names = [''] if globstar_with_root else []
+                for top, dirs, files in self.walk(dirname):
+                    _mkabs = lambda s: os.path.join(top[len(dirname)+1:], s)
+                    names.extend(map(_mkabs, dirs))
+                    names.extend(map(_mkabs, files))
+                # Reset pattern so that fnmatch(), which does not understand
+                # ** specifically, will only return a single group match.
+                pattern = '*'
+            else:
+                names = self.listdir(dirname)
+        except os.error:
+            return []
+
+        if pattern[0] != '.':
+            # Remove hidden files by default, but take care to ensure
+            # that the empty string we may have added earlier remains.
+            # Do not filter out the '' that we might have added earlier
+            names = filter(lambda x: not x or x[0] != '.', names)
+        return fnmatch.filter(names, pattern)
+
+
+default_globber = Globber()
+glob = default_globber.glob
+iglob = default_globber.iglob
+del default_globber
 
 
 magic_check = re.compile('[*?[]')
