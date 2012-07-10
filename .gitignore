@@ -1,5 +1,5 @@
 *.pyc
-/BRANCH_TODO
+/LOCAL_TODO
 
 # distutils/setuptools
 /dist/
