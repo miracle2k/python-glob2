@@ -9,8 +9,33 @@ import fnmatch
 class Globber(object):
 
     listdir = staticmethod(os.listdir)
-    walk = staticmethod(os.walk)
+    isdir = staticmethod(os.path.isdir)
+    islink = staticmethod(os.path.islink)
     exists = staticmethod(os.path.lexists)
+
+    def walk(self, top, followlinks=False):
+        """A simplified version of os.walk (code copied) that uses
+        ``self.listdir``, and the other local filesystem methods.
+
+        Because we don't care about file/directory distinctions, only
+        a single list is returned.
+        """
+        try:
+            names = self.listdir(top)
+        except os.error, err:
+            return
+
+        items = []
+        for name in names:
+            items.append(name)
+
+        yield top, items
+
+        for name in items:
+            new_path = os.path.join(top, name)
+            if followlinks or not self.islink(new_path):
+                for x in self.walk(new_path, followlinks):
+                    yield x
 
     def glob(self, pathname, with_matches=False):
         """Return a list of paths matching a pathname pattern.
@@ -92,7 +117,7 @@ class Globber(object):
         # If no magic, short-circuit, only check for existence
         if not has_magic(pattern):
             if pattern == '':
-                if os.path.isdir(dirname):
+                if self.isdir(dirname):
                     return [(pattern, ())]
             else:
                 if self.exists(os.path.join(dirname, pattern)):
@@ -108,10 +133,9 @@ class Globber(object):
                 # an empty string as opposed to '.', be spare ourselves
                 # having to deal with os.path.normpath() later.
                 names = [''] if globstar_with_root else []
-                for top, dirs, files in self.walk(dirname):
+                for top, entries in self.walk(dirname):
                     _mkabs = lambda s: os.path.join(top[len(dirname)+1:], s)
-                    names.extend(map(_mkabs, dirs))
-                    names.extend(map(_mkabs, files))
+                    names.extend(map(_mkabs, entries))
                 # Reset pattern so that fnmatch(), which does not understand
                 # ** specifically, will only return a single group match.
                 pattern = '*'
