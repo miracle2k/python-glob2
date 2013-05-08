@@ -50,7 +50,7 @@ class BaseTest(object):
 
     def setup(self):
         self.basedir = tempfile.mkdtemp()
-        self._old_cwd = os.getcwdu()
+        self._old_cwd = os.getcwd()
         os.chdir(self.basedir)
 
         self.setup_files()

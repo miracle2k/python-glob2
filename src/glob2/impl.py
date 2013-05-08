@@ -1,8 +1,11 @@
 """Filename globbing utility."""
 
+from __future__ import absolute_import
+
+import sys
 import os
 import re
-import fnmatch
+from . import fnmatch
 
 
 class Globber(object):
@@ -21,7 +24,7 @@ class Globber(object):
         """
         try:
             names = self.listdir(top)
-        except os.error, err:
+        except os.error as err:
             return
 
         items = []
@@ -118,7 +121,7 @@ class Globber(object):
         and faster to filter here than in :meth:`_iglob`.
         """
 
-        if PY3:
+        if sys.version_info[0] == 3:
             if isinstance(pattern, bytes):
                 dirname = bytes(os.curdir, 'ASCII')
         else:
