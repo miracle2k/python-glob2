@@ -1,6 +1,5 @@
 """Filename globbing utility."""
 
-import sys
 import os
 import re
 import fnmatch
@@ -40,7 +39,10 @@ class Globber(object):
     def glob(self, pathname, with_matches=False):
         """Return a list of paths matching a pathname pattern.
 
-        The pattern may contain simple shell-style wildcards a la fnmatch.
+        The pattern may contain simple shell-style wildcards a la
+        fnmatch. However, unlike fnmatch, filenames starting with a
+        dot are special cases that are not matched by '*' and '?'
+        patterns.
 
         """
         return list(self.iglob(pathname, with_matches))
@@ -49,7 +51,10 @@ class Globber(object):
         """Return an iterator which yields the paths matching a pathname
         pattern.
 
-        The pattern may contain simple shell-style wildcards a la fnmatch.
+        The pattern may contain simple shell-style wildcards a la
+        fnmatch. However, unlike fnmatch, filenames starting with a
+        dot are special cases that are not matched by '*' and '?'
+        patterns.
 
         If ``with_matches`` is True, then for each matching path
         a 2-tuple will be returned; the second element if the tuple
@@ -86,7 +91,10 @@ class Globber(object):
         # If the directory is globbed, recurse to resolve.
         # If at this point there is no directory part left, we simply
         # continue with dirname="", which will search the current dir.
-        if dirname and has_magic(dirname):
+        # `os.path.split()` returns the argument itself as a dirname if it is a
+        # drive or UNC path.  Prevent an infinite recursion if a drive or UNC path
+        # contains magic characters (i.e. r'\\?\C:').
+        if dirname != pathname and has_magic(dirname):
             # Note that this may return files, which will be ignored
             # later when we try to use them as directories.
             # Prefiltering them here would only require more IO ops.
@@ -110,9 +118,13 @@ class Globber(object):
         and faster to filter here than in :meth:`_iglob`.
         """
 
-        if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
-            dirname = unicode(dirname, sys.getfilesystemencoding() or
-                                       sys.getdefaultencoding())
+        if PY3:
+            if isinstance(pattern, bytes):
+                dirname = bytes(os.curdir, 'ASCII')
+        else:
+            if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
+                dirname = unicode(dirname, sys.getfilesystemencoding() or
+                                           sys.getdefaultencoding())
 
         # If no magic, short-circuit, only check for existence
         if not has_magic(pattern):
@@ -144,11 +156,11 @@ class Globber(object):
         except os.error:
             return []
 
-        if pattern[0] != '.':
+        if not _ishidden(pattern):
             # Remove hidden files by default, but take care to ensure
             # that the empty string we may have added earlier remains.
             # Do not filter out the '' that we might have added earlier
-            names = filter(lambda x: not x or x[0] != '.', names)
+            names = filter(lambda x: not x or not _ishidden(x), names)
         return fnmatch.filter(names, pattern)
 
 
@@ -159,6 +171,14 @@ del default_globber
 
 
 magic_check = re.compile('[*?[]')
+magic_check_bytes = re.compile(b'[*?[]')
 
 def has_magic(s):
-    return magic_check.search(s) is not None
+    if isinstance(s, bytes):
+        match = magic_check_bytes.search(s)
+    else:
+        match = magic_check.search(s)
+    return match is not None
+
+def _ishidden(path):
+    return path[0] in ('.', b'.'[0])
