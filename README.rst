@@ -15,6 +15,8 @@ This is an extended version of Python's builtin glob module
 
 - Compatible with Python 2 and Python 3 (tested with 3.3).
 
+It's currently based on the glob code from Python 3.3.1.
+
 
 Examples
 --------
