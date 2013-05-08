@@ -13,6 +13,8 @@ This is an extended version of Python's builtin glob module
 - The ability to replace the filesystem functions used, in order to glob
   on virtual filesystems.
 
+- Compatible with Python 2 and Python 3 (tested with 3.3).
+
 
 Examples
 --------
