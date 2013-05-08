@@ -1,6 +1,5 @@
 """Filename globbing utility."""
 
-import sys
 import os
 import re
 import fnmatch
@@ -9,7 +8,10 @@ import fnmatch
 def glob(pathname, with_matches=False):
     """Return a list of paths matching a pathname pattern.
 
-    The pattern may contain simple shell-style wildcards a la fnmatch.
+    The pattern may contain simple shell-style wildcards a la
+    fnmatch. However, unlike fnmatch, filenames starting with a
+    dot are special cases that are not matched by '*' and '?'
+    patterns.
 
     """
     return list(iglob(pathname, with_matches))
@@ -19,7 +21,10 @@ def iglob(pathname, with_matches=False):
     """Return an iterator which yields the paths matching a pathname
     pattern.
 
-    The pattern may contain simple shell-style wildcards a la fnmatch.
+    The pattern may contain simple shell-style wildcards a la
+    fnmatch. However, unlike fnmatch, filenames starting with a
+    dot are special cases that are not matched by '*' and '?'
+    patterns.
 
     If ``with_matches`` is True, then for each matching path
     a 2-tuple will be returned; the second element if the tuple
@@ -50,10 +55,13 @@ def iglob_internal(pathname, _root=True):
         return
     dirname, basename = os.path.split(pathname)
     if not dirname:
-        for name, groups in glob1(os.curdir, basename, not _root):
+        for name, groups in glob1(None, basename, not _root):
             yield name, groups
         return
-    if has_magic(dirname):
+    # `os.path.split()` returns the argument itself as a dirname if it is a
+    # drive or UNC path.  Prevent an infinite recursion if a drive or UNC path
+    # contains magic characters (i.e. r'\\?\C:').
+    if dirname != pathname and has_magic(dirname):
         dirs = iglob_internal(dirname, _root=False)
     else:
         dirs = [(dirname, ())]
@@ -72,9 +80,13 @@ def iglob_internal(pathname, _root=True):
 def glob1(dirname, pattern, include_root):
     if not dirname:
         dirname = os.curdir
-    if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
-        dirname = unicode(dirname, sys.getfilesystemencoding() or
-                                   sys.getdefaultencoding())
+    if PY3:
+        if isinstance(pattern, bytes):
+            dirname = bytes(os.curdir, 'ASCII')
+    else:
+        if isinstance(pattern, unicode) and not isinstance(dirname, unicode):
+            dirname = unicode(dirname, sys.getfilesystemencoding() or
+                                       sys.getdefaultencoding())
     try:
         if pattern == '**':
             # Include the current directory in **, if asked; by adding
@@ -92,13 +104,13 @@ def glob1(dirname, pattern, include_root):
             names = os.listdir(dirname)
     except os.error:
         return []
-    if pattern[0] != '.':
+    if not _ishidden(pattern):
         # Do not filter out the '' that we might have added earlier
-        names = filter(lambda x: not x or x[0] != '.', names)
+        names = filter(lambda x: not x or not _ishidden(x), names)
     return fnmatch.filter(names, pattern)
 
 def glob0(dirname, basename):
-    if basename == '':
+    if not basename:
         # `os.path.split()` returns an empty basename for paths ending with a
         # directory separator.  'q*x/' should match only directories.
         if os.path.isdir(dirname):
@@ -110,6 +122,14 @@ def glob0(dirname, basename):
 
 
 magic_check = re.compile('[*?[]')
+magic_check_bytes = re.compile(b'[*?[]')
 
 def has_magic(s):
-    return magic_check.search(s) is not None
+    if isinstance(s, bytes):
+        match = magic_check_bytes.search(s)
+    else:
+        match = magic_check.search(s)
+    return match is not None
+
+def _ishidden(path):
+    return path[0] in ('.', b'.'[0])
