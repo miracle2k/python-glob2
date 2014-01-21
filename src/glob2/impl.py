@@ -145,7 +145,7 @@ class Globber(object):
         try:
             if pattern == '**':
                 # Include the current directory in **, if asked; by adding
-                # an empty string as opposed to '.', be spare ourselves
+                # an empty string as opposed to '.', we spare ourselves
                 # having to deal with os.path.normpath() later.
                 names = [''] if globstar_with_root else []
                 for top, entries in self.walk(dirname):
