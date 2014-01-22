@@ -1,2 +1,2 @@
-include README.rst CHANGES
+include README.rst CHANGES LICENSE
 include test.py

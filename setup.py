@@ -27,6 +27,7 @@ setup(
                   'and supports recursive wildcards',
     author = 'Michael Elsdoerfer',
     author_email = 'michael@elsdoerfer.com',
+    license='BSD',
     url = 'http://github.com/miracle2k/python-glob2/',
     classifiers = [
         'Development Status :: 3 - Alpha',
