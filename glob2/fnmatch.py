@@ -88,11 +88,7 @@ def translate(pat):
         c = pat[i]
         i = i+1
         if c == '*':
-            if i < n and pat[i] == '*':
-                res = res + '(.*)'
-                i = i+1
-            else:
-                res = res + '([^\\' + os.path.sep + ']*)'
+            res = res + '(.*)'
         elif c == '?':
             res = res + '(.)'
         elif c == '[':
