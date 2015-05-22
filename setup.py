@@ -8,7 +8,7 @@ import re
 here = os.path.dirname(os.path.abspath(__file__))
 version_re = re.compile(
     r'__version__ = (\(.*?\))')
-fp = open(os.path.join(here, 'src/glob2', '__init__.py'))
+fp = open(os.path.join(here, 'glob2', '__init__.py'))
 version = None
 for line in fp:
     match = version_re.search(line)
@@ -38,6 +38,5 @@ setup(
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries',
         ],
-    packages = find_packages('src'),
-    package_dir = {'': 'src'},
+    packages = find_packages()
 )
