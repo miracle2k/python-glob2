@@ -118,7 +118,7 @@ class Globber(object):
 
     def resolve_pattern(self, dirname, pattern, globstar_with_root, include_hidden):
         """Apply ``pattern`` (contains no path elements) to the
-        literal directory`` in dirname``.
+        literal directory in ``dirname``.
 
         If pattern=='', this will filter for directories. This is
         a special case that happens when the user's glob expression ends
