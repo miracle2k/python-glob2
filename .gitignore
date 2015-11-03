@@ -8,3 +8,6 @@
 # IDEs
 *.wpr
 /.idea/
+
+# Folder config file
+[Dd]esktop.ini

@@ -39,7 +39,7 @@ class Globber(object):
                 for x in self.walk(new_path, followlinks):
                     yield x
 
-    def glob(self, pathname, with_matches=False):
+    def glob(self, pathname, with_matches=False, include_hidden=False):
         """Return a list of paths matching a pathname pattern.
 
         The pattern may contain simple shell-style wildcards a la
@@ -47,10 +47,12 @@ class Globber(object):
         dot are special cases that are not matched by '*' and '?'
         patterns.
 
+        If ``include_hidden`` is True, then files and folders starting with
+        a dot are also returned.
         """
-        return list(self.iglob(pathname, with_matches))
+        return list(self.iglob(pathname, with_matches, include_hidden))
 
-    def iglob(self, pathname, with_matches=False):
+    def iglob(self, pathname, with_matches=False, include_hidden=False):
         """Return an iterator which yields the paths matching a pathname
         pattern.
 
@@ -63,13 +65,16 @@ class Globber(object):
         a 2-tuple will be returned; the second element if the tuple
         will be a list of the parts of the path that matched the individual
         wildcards.
+
+        If ``include_hidden`` is True, then files and folders starting with
+        a dot are also returned.
         """
-        result = self._iglob(pathname)
+        result = self._iglob(pathname, include_hidden=include_hidden)
         if with_matches:
             return result
         return map(lambda s: s[0], result)
 
-    def _iglob(self, pathname, rootcall=True):
+    def _iglob(self, pathname, rootcall=True, include_hidden=False):
         """Internal implementation that backs :meth:`iglob`.
 
         ``rootcall`` is required to differentiate between the user's call to
@@ -101,19 +106,19 @@ class Globber(object):
             # Note that this may return files, which will be ignored
             # later when we try to use them as directories.
             # Prefiltering them here would only require more IO ops.
-            dirs = self._iglob(dirname, rootcall=False)
+            dirs = self._iglob(dirname, False, include_hidden)
         else:
             dirs = [(dirname, ())]
 
         # Resolve ``basename`` expr for every directory found
         for dirname, dir_groups in dirs:
             for name, groups in self.resolve_pattern(
-                    dirname, basename, not rootcall):
+                    dirname, basename, not rootcall, include_hidden):
                 yield os.path.join(dirname, name), dir_groups + groups
 
-    def resolve_pattern(self, dirname, pattern, globstar_with_root):
+    def resolve_pattern(self, dirname, pattern, globstar_with_root, include_hidden):
         """Apply ``pattern`` (contains no path elements) to the
-        literal directory`` in dirname``.
+        literal directory in ``dirname``.
 
         If pattern=='', this will filter for directories. This is
         a special case that happens when the user's glob expression ends
@@ -159,8 +164,8 @@ class Globber(object):
         except os.error:
             return []
 
-        if not _ishidden(pattern):
-            # Remove hidden files by default, but take care to ensure
+        if not include_hidden and not _ishidden(pattern):
+            # Remove hidden files, but take care to ensure
             # that the empty string we may have added earlier remains.
             # Do not filter out the '' that we might have added earlier
             names = filter(lambda x: not x or not _ishidden(x), names)

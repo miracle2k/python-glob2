@@ -155,3 +155,20 @@ class TestRecursive(BaseTest):
         assert glob2.glob(__file__) == [
             (__file__)
         ]
+
+
+class TestIncludeHidden(BaseTest):
+
+    def setup_files(self):
+        self.makedirs('a', 'b', 'a/.foo')
+        self.touch('file.py', 'file.txt', 'a/.bar', 'README', 'b/py',
+                   'b/.bar', 'a/.foo/hello.py', 'a/.foo/world.txt')
+
+    def test_hidden(self):
+        # ** includes the current directory
+        assert sorted(glob2.glob('*/*', True, include_hidden=True)), [
+            ('a/.bar', ('a', '.bar')),
+            ('a/.foo', ('a', '.foo')),
+            ('b/.bar', ('b', '.bar')),
+            ('b/py', ('b', 'py')),
+        ]
