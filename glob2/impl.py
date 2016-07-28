@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import sys
 import os
 import re
+import itertools
 from . import fnmatch
 
 
@@ -72,7 +73,7 @@ class Globber(object):
         result = self._iglob(pathname, include_hidden=include_hidden)
         if with_matches:
             return result
-        return map(lambda s: s[0], result)
+        return itertools.imap(lambda s: s[0], result)
 
     def _iglob(self, pathname, rootcall=True, include_hidden=False):
         """Internal implementation that backs :meth:`iglob`.
