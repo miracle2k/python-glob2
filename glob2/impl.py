@@ -44,7 +44,7 @@ class Globber(object):
                 for x in self.walk(new_path, followlinks):
                     yield x
 
-    def glob(self, pathname, with_matches=False, include_hidden=False):
+    def glob(self, pathname, with_matches=False, include_hidden=False, recursive=True):
         """Return a list of paths matching a pathname pattern.
 
         The pattern may contain simple shell-style wildcards a la
@@ -57,7 +57,7 @@ class Globber(object):
         """
         return list(self.iglob(pathname, with_matches, include_hidden))
 
-    def iglob(self, pathname, with_matches=False, include_hidden=False):
+    def iglob(self, pathname, with_matches=False, include_hidden=False, recursive=True):
         """Return an iterator which yields the paths matching a pathname
         pattern.
 
