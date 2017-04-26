@@ -38,7 +38,7 @@ def fnmatch(name, pat):
     pat = os.path.normcase(pat)
     return fnmatchcase(name, pat)
 
-lru_cache(maxsize=256, typed=True)
+@lru_cache(maxsize=256, typed=True)
 def _compile_pattern(pat):
     if isinstance(pat, bytes):
         pat_str = pat.decode('ISO-8859-1')
