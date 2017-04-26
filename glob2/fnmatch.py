@@ -10,7 +10,6 @@ The function translate(PATTERN) returns a regular expression
 corresponding to PATTERN.  (It does not compile it.)
 """
 import os
-import posixpath
 import re
 try:
     from functools import lru_cache
@@ -19,7 +18,16 @@ except ImportError:
 
 __all__ = ["filter", "fnmatch", "fnmatchcase", "translate"]
 
-def fnmatch(name, pat):
+
+def _norm_paths(path, norm_paths, sep):
+    if norm_paths is None:
+        path = re.sub(r'\/', sep or os.sep, path)  # cached internally
+    elif norm_paths:
+        path = os.path.normcase(path)
+    return path
+
+
+def fnmatch(name, pat, norm_paths=True, case_sensitive=True, sep=None):
     """Test whether FILENAME matches PATTERN.
 
     Patterns are Unix shell style:
@@ -33,46 +41,65 @@ def fnmatch(name, pat):
     Both FILENAME and PATTERN are first case-normalized
     if the operating system requires it.
     If you don't want this, use fnmatchcase(FILENAME, PATTERN).
-    """
-    name = os.path.normcase(name)
-    pat = os.path.normcase(pat)
-    return fnmatchcase(name, pat)
 
-lru_cache(maxsize=256, typed=True)
-def _compile_pattern(pat):
+    :param slashes:
+    :param norm_paths:
+        A tri-state boolean:
+        when true, invokes `os.path,.normcase()` on both paths,
+        when `None`, just equalize slashes/backslashes to `os.sep`,
+        when false, does not touch paths at all.
+
+        Note that a side-effect of `normcase()` on *Windows* is that
+        it converts to lower-case all matches of `?glob()` functions.
+    :param case_sensitive:
+        defines the case-sensitiviness of regex doing the matches
+    :param sep:
+        in case only slahes replaced, what sep-char to substitute with;
+        if false, `os.sep` is used.
+
+    Notice that by default, `normcase()` causes insensitive matching
+    on *Windows*, regardless of `case_insensitive` param.
+    Set ``norm_paths=None, case_sensitive=False`` to preserve
+    verbatim mathces.
+    """
+    name, pat = [_norm_paths(p, norm_paths, sep)
+                 for p in (name, pat)]
+
+    return fnmatchcase(name, pat, case_sensitive=case_sensitive)
+
+
+@lru_cache(maxsize=256, typed=True)
+def _compile_pattern(pat, case_sensitive):
     if isinstance(pat, bytes):
         pat_str = pat.decode('ISO-8859-1')
         res_str = translate(pat_str)
         res = res_str.encode('ISO-8859-1')
     else:
         res = translate(pat)
-    return re.compile(res).match
+    flags = 0 if case_sensitive else re.IGNORECASE
+    return re.compile(res, flags).match
 
-def filter(names, pat):
+
+def filter(names, pat, norm_paths=True, case_sensitive=True, sep=None):
     """Return the subset of the list NAMES that match PAT."""
     result = []
-    pat = os.path.normcase(pat)
-    match = _compile_pattern(pat)
-    if os.path is posixpath:
-        # normcase on posix is NOP. Optimize it away from the loop.
-        for name in names:
-            m = match(name)
-            if m:
-                result.append((name, m.groups()))
-    else:
-        for name in names:
-            m = match(os.path.normcase(name))
-            if m:
-                result.append((name, m.groups()))
+    pat = _norm_paths(pat, norm_paths, sep)
+    match = _compile_pattern(pat, case_sensitive)
+    for name in names:
+        m = match(_norm_paths(name, norm_paths, sep))
+        if m:
+            result.append((name,
+                           tuple(_norm_paths(p, norm_paths, sep) for p in m.groups())))
     return result
 
-def fnmatchcase(name, pat):
+
+def fnmatchcase(name, pat, case_sensitive=True):
     """Test whether FILENAME matches PATTERN, including case.
 
     This is a version of fnmatch() which doesn't case-normalize
     its arguments.
     """
-    match = _compile_pattern(pat)
+    match = _compile_pattern(pat, case_sensitive)
     return match(name) is not None
 
 
