@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import sys
 import os
 import re
+from os.path import join
 from . import fnmatch
 
 try:
@@ -20,7 +21,7 @@ class Globber(object):
     islink = staticmethod(os.path.islink)
     exists = staticmethod(os.path.lexists)
 
-    def walk(self, top, followlinks=False):
+    def walk(self, top, followlinks=False, sep=None):
         """A simplified version of os.walk (code copied) that uses
         ``self.listdir``, and the other local filesystem methods.
 
@@ -39,12 +40,13 @@ class Globber(object):
         yield top, items
 
         for name in items:
-            new_path = os.path.join(top, name)
+            new_path = _join_paths([top, name], sep=sep)
             if followlinks or not self.islink(new_path):
                 for x in self.walk(new_path, followlinks):
                     yield x
 
-    def glob(self, pathname, with_matches=False, include_hidden=False, recursive=True):
+    def glob(self, pathname, with_matches=False, include_hidden=False, recursive=True,
+             norm_paths=True, case_sensitive=True, sep=None):
         """Return a list of paths matching a pathname pattern.
 
         The pattern may contain simple shell-style wildcards a la
@@ -55,9 +57,11 @@ class Globber(object):
         If ``include_hidden`` is True, then files and folders starting with
         a dot are also returned.
         """
-        return list(self.iglob(pathname, with_matches, include_hidden))
+        return list(self.iglob(pathname, with_matches, include_hidden,
+                               norm_paths, case_sensitive, sep))
 
-    def iglob(self, pathname, with_matches=False, include_hidden=False, recursive=True):
+    def iglob(self, pathname, with_matches=False, include_hidden=False, recursive=True,
+              norm_paths=True, case_sensitive=True, sep=None):
         """Return an iterator which yields the paths matching a pathname
         pattern.
 
@@ -74,12 +78,14 @@ class Globber(object):
         If ``include_hidden`` is True, then files and folders starting with
         a dot are also returned.
         """
-        result = self._iglob(pathname, include_hidden=include_hidden)
+        result = self._iglob(pathname, True, include_hidden,
+                             norm_paths, case_sensitive, sep)
         if with_matches:
             return result
         return imap(lambda s: s[0], result)
 
-    def _iglob(self, pathname, rootcall=True, include_hidden=False):
+    def _iglob(self, pathname, rootcall, include_hidden,
+               norm_paths, case_sensitive, sep):
         """Internal implementation that backs :meth:`iglob`.
 
         ``rootcall`` is required to differentiate between the user's call to
@@ -111,17 +117,20 @@ class Globber(object):
             # Note that this may return files, which will be ignored
             # later when we try to use them as directories.
             # Prefiltering them here would only require more IO ops.
-            dirs = self._iglob(dirname, False, include_hidden)
+            dirs = self._iglob(dirname, False, include_hidden,
+                               norm_paths, case_sensitive, sep)
         else:
             dirs = [(dirname, ())]
 
         # Resolve ``basename`` expr for every directory found
         for dirname, dir_groups in dirs:
-            for name, groups in self.resolve_pattern(
-                    dirname, basename, not rootcall, include_hidden):
-                yield os.path.join(dirname, name), dir_groups + groups
+            for name, groups in self.resolve_pattern(dirname, basename,
+                                                     not rootcall, include_hidden,
+                                                     norm_paths, case_sensitive, sep):
+                yield _join_paths([dirname, name], sep=sep), dir_groups + groups
 
-    def resolve_pattern(self, dirname, pattern, globstar_with_root, include_hidden):
+    def resolve_pattern(self, dirname, pattern, globstar_with_root, include_hidden,
+                        norm_paths, case_sensitive, sep):
         """Apply ``pattern`` (contains no path elements) to the
         literal directory in ``dirname``.
 
@@ -145,7 +154,7 @@ class Globber(object):
                 if self.isdir(dirname):
                     return [(pattern, ())]
             else:
-                if self.exists(os.path.join(dirname, pattern)):
+                if self.exists(_join_paths([dirname, pattern], sep=sep)):
                     return [(pattern, ())]
             return []
 
@@ -158,8 +167,8 @@ class Globber(object):
                 # an empty string as opposed to '.', we spare ourselves
                 # having to deal with os.path.normpath() later.
                 names = [''] if globstar_with_root else []
-                for top, entries in self.walk(dirname):
-                    _mkabs = lambda s: os.path.join(top[len(dirname)+1:], s)
+                for top, entries in self.walk(dirname, sep=sep):
+                    _mkabs = lambda s: _join_paths([top[len(dirname) + 1:], s], sep=sep)
                     names.extend(map(_mkabs, entries))
                 # Reset pattern so that fnmatch(), which does not understand
                 # ** specifically, will only return a single group match.
@@ -174,7 +183,7 @@ class Globber(object):
             # that the empty string we may have added earlier remains.
             # Do not filter out the '' that we might have added earlier
             names = filter(lambda x: not x or not _ishidden(x), names)
-        return fnmatch.filter(names, pattern)
+        return fnmatch.filter(names, pattern, norm_paths, case_sensitive, sep)
 
 
 default_globber = Globber()
@@ -186,6 +195,7 @@ del default_globber
 magic_check = re.compile('[*?[]')
 magic_check_bytes = re.compile(b'[*?[]')
 
+
 def has_magic(s):
     if isinstance(s, bytes):
         match = magic_check_bytes.search(s)
@@ -193,5 +203,14 @@ def has_magic(s):
         match = magic_check.search(s)
     return match is not None
 
+
 def _ishidden(path):
     return path[0] in ('.', b'.'[0])
+
+
+def _join_paths(paths, sep=None):
+    path = join(*paths)
+    if sep:
+        path = re.sub(r'\/', sep, path)  # cached internally
+    return path
+
