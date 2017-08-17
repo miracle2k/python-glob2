@@ -1,3 +1,10 @@
+0.6 (2017-08-17)
+    - Support dummy recursive parameter in APIs to match the new
+      call signature of Python 3.
+    - Fix lru_cache (Kostis Anagnostopoulos).
+    - Introduce norm_paths and case_sensitive options to optionally
+      change the behaviour (Kostis Anagnostopoulos).
+
 0.5 (2016-11-04)
     - include_hidden option.
     - Python 3 fixes.
