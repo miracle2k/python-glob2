@@ -1,3 +1,6 @@
+0.7 (2019-06-11)
+    - Fix deprecation warning.
+
 0.6 (2017-08-17)
     - Support dummy recursive parameter in APIs to match the new
       call signature of Python 3.

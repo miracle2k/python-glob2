@@ -1,0 +1,4 @@
+- Update CHANGES.
+- Update glob2/__init__.py
+- git tag -a v0.X
+- par
