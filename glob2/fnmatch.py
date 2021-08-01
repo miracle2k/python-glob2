@@ -138,4 +138,4 @@ def translate(pat):
                 res = '%s([%s])' % (res, stuff)
         else:
             res = res + re.escape(c)
-    return '(?ms)' + res + '\Z'
+    return '(?ms)' + res + r'\Z'
